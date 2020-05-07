@@ -1,11 +1,12 @@
 from tqdm import tqdm
 import numpy as np
 import cv2 as cv
+import tensorflow.keras.utils as np_utils
 import os
 from keras_preprocessing.sequence import pad_sequences
 from keras.models import Sequential
 from keras.layers import Activation, GRU, Dropout, TimeDistributed, Dense, Bidirectional, Conv3D, Flatten, MaxPooling3D, \
-    ZeroPadding3D
+    ZeroPadding3D, BatchNormalization
 
 """**Global Variables**"""
 
@@ -54,23 +55,24 @@ def read_data():
             one_video_frames = np.asarray(one_video_frames)
             leave_frame = 0
             while (True):
-                if leave_frame % 2 == 0:
-                    ret, frame = cap.read()
-                    if ret == False:
-                        break
-                    frame = cv.resize(frame, (150, 150))
-                    frame = frame.reshape(150, 150, 3)
-                    frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+               # if leave_frame % 2 == 0:
+                 ret, frame = cap.read()
+                 if ret == False:
+                     break
+                 frame = cv.resize(frame, (80, 80))
+                 frame = frame.reshape(80, 80, 3)
+                 #frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
-                    one_video_frames = np.append(one_video_frames, frame)
-                    one_video_frames = np.reshape(one_video_frames, (-1, frame.shape[0], frame.shape[1]))
-                else:
-                    leave_frame += 1
+                 one_video_frames = np.append(one_video_frames, frame)
+                 one_video_frames = np.reshape(one_video_frames, (-1, frame.shape[0], frame.shape[1],3))
+               # else:
+                #   leave_frame += 1
 
                 # all_videos.append(np.array([one_video_frames, label]))
             all_videos.append(one_video_frames)
             y_labels.append(label)
     print("max # of frames:", max_no_frames)
+    y_labels = np_utils.to_categorical(y_labels)
 
     # all_videos: each element "has a diff size according to the length of each video" is a list of frames for each video
     np.save('all_videos.npy', all_videos)
@@ -91,7 +93,7 @@ def main():
     else:
         read_data()
         print("train data created")
-
+   # read_data()
     padded_videos = []
     padded_videos = pad_sequences(all_videos, maxlen=max_no_frames, padding='pre')
     # padded_videos=pad_sequences(all_videos,padding='pre')# bt3rf lw7dha el max lenght <3
@@ -101,35 +103,36 @@ def main():
     ##################################################
     # model
 
-    shape = (259, 150, 150, 3)
+    shape = (max_no_frames, 80, 80, 3)
     model = Sequential()
 
-    # model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2), input_shape=shape)))
-    model.add(Conv3D(4, kernel_size=3, activation="relu", input_shape=shape))
-    model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=1, padding='valid'))
-    # model.add(Dropout(0.2))
+#   model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2), input_shape=shape)))
+    model.add(Conv3D(32, kernel_size=(3,5,5),strides=(1, 2, 2), activation="relu", input_shape=shape))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.5))
+    model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
 
-    # model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2))))
-    # model.add(Conv3D(8, kernel_size=3, activation="relu"))
-    # model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=1, padding='valid'))
-    # model.add(Dropout(0.2))
+#   model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2))))
+    model.add(Conv3D(64, kernel_size=(3, 5, 5), strides=(1, 1, 1), activation="relu"))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.5))
+    model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
 
-    # # model.add(TimeDistributed(ZeroPadding3D(padding=(1, 1, 1))))
-    # model.add(Conv3D(12, kernel_size=3, activation="relu"))
-    # model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=1, padding='valid'))
-    # model.add(Dropout(0.2))
+#   model.add(TimeDistributed(ZeroPadding3D(padding=(1, 1, 1))))
+    model.add(Conv3D(96, kernel_size=(3, 3, 3), strides=(1, 1, 1), activation="relu"))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.5))
+    model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
 
-    # model.add(TimeDistributed(Flatten()))
+    model.add(TimeDistributed(Flatten()))
 
-    # model.add(Bidirectional(GRU(256, return_sequences=True), merge_mode='concat'))
-    #
-    # model.add(Bidirectional(GRU(256, return_sequences=True), merge_mode='concat'))
-    # as the model
+    model.add(Bidirectional(GRU(256, return_sequences=True), merge_mode='concat'))
+    model.add(Bidirectional(GRU(256, return_sequences=True), merge_mode='concat'))
+
     model.add(Flatten())
-
-    model.add((Dense(128, activation='relu')))
     model.add((Dense(5, activation='softmax')))
 
+   
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
     model.fit(padded_videos, y_labels, epochs=2, batch_size=max_no_frames, verbose=2)
