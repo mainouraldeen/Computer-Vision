@@ -15,7 +15,7 @@ all_videos = []
 max_no_frames = 0
 
 training_folder = "Training_Set"
-testing_folder = "Testing_set"
+testing_folder = "Testing_Set"
 
 """**Get max number of frames and saving all videos without duplication in (total_frames)**"""
 
@@ -80,6 +80,40 @@ def read_data():
     np.save('max_no_frames.npy', max_no_frames)
 
 
+
+def read_test_data():
+  max_no_frames=0
+  testing_videos=[]
+  for video in os.listdir(testing_folder):
+
+    video_path = os.path.join(testing_folder, video)
+    cap = cv.VideoCapture(video_path)
+    video_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
+    
+    max_no_frames = max(max_no_frames, video_frames)
+
+    one_video_frames = []
+    one_video_frames = np.asarray(one_video_frames)
+
+    leave_frame = 0
+    while (True):
+      ret, frame = cap.read()
+      if ret == False:
+        break
+      # if leave_frame % 2 == 0:
+          
+      frame = cv.resize(frame, (80, 80))
+      frame = frame.reshape(80, 80, 3)
+      # frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+
+      one_video_frames = np.append(one_video_frames, frame)
+      one_video_frames = np.reshape(one_video_frames, (-1, frame.shape[0], frame.shape[1],3))
+      # else:
+      #     leave_frame += 1
+
+    testing_videos.append(one_video_frames)
+  return testing_videos
+
 def main():
     global all_videos
     global y_labels
@@ -136,6 +170,15 @@ def main():
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
     model.fit(padded_videos, y_labels, epochs=2, batch_size=max_no_frames, verbose=2)
+    
+    testing_videos= read_test_data()
 
+    padded_test_videos = pad_sequences(testing_videos, maxlen=max_no_frames, padding='pre')
+
+
+    prediction = model.predict(padded_test_videos)
+    predicted_label=np.argmax(prediction,axis=1)
+
+    print("----------predicted labels------------",predicted_label)
 
 main()
