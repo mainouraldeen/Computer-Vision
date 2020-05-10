@@ -16,6 +16,7 @@ max_no_frames = 0
 
 training_folder = "Training_Set"
 testing_folder = "Testing_Set"
+submitFile = pd.read_csv('submit.csv')
 
 """**Get max number of frames and saving all videos without duplication in (total_frames)**"""
 
@@ -84,8 +85,9 @@ def read_data():
 def read_test_data():
   max_no_frames=0
   testing_videos=[]
+  videos_names=[]
   for video in os.listdir(testing_folder):
-
+    videos_names.append(video)
     video_path = os.path.join(testing_folder, video)
     cap = cv.VideoCapture(video_path)
     video_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
@@ -112,7 +114,7 @@ def read_test_data():
       #     leave_frame += 1
 
     testing_videos.append(one_video_frames)
-  return testing_videos
+  return testing_videos, videos_names
 
 def main():
     global all_videos
@@ -131,11 +133,9 @@ def main():
     padded_videos = []
     padded_videos = pad_sequences(all_videos, maxlen=max_no_frames, padding='pre')
     # padded_videos=pad_sequences(all_videos,padding='pre')# bt3rf lw7dha el max lenght <3
-    print(len(padded_videos[1]))
-    # print(all_videos.shape)
 
     ##################################################
-    # model
+    # training model
 
     shape = (max_no_frames, 80, 80, 3)
     model = Sequential()
@@ -171,14 +171,20 @@ def main():
 
     model.fit(padded_videos, y_labels, epochs=2, batch_size=max_no_frames, verbose=2)
     
-    testing_videos= read_test_data()
+    #testing
+    videos_names=[]
+    testing_videos, videos_names= read_test_data()
 
     padded_test_videos = pad_sequences(testing_videos, maxlen=max_no_frames, padding='pre')
 
 
     prediction = model.predict(padded_test_videos)
-    predicted_label=np.argmax(prediction,axis=1)
+    predicted_labels=np.argmax(prediction,axis=1)
 
-    print("----------predicted labels------------",predicted_label)
+    submitFile['Label'] = predicted_labels
+    submitFile['Video'] = videos_names
+    submitFile.to_csv('submit.csv', index=False)
+
+
 
 main()
