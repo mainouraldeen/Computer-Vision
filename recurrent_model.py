@@ -1,8 +1,31 @@
+class Generator(Sequence):
+  def __init__(videos, labels, batch_size):
+    self.videos = videos
+    self.labels = labels
+    self.batch_size = batch_size
+  
+
+  ################ msh fahmaha awi :D ###########################
+  #This function computes the number of batches that this generator is supposed to produce.
+  #So, we divide the number of total samples by the batch_size and return that value.
+  def __len__(self):
+     return (np.ceil(len(self.videos) / float(self.batch_size))).astype(np.int)
+  ###############################################################
+
+  def __getitem__(self,idx):
+    batch_x = self.videos[idx* self.batch_size: (idx+1)*self.batch_size]
+    batch_y = self.labels[idx*self.batch_size: (idx+1)*self.batch_size] 
+    return batch_x , batch_y
+
+from keras.utils import Sequence
 from tqdm import tqdm
 import numpy as np
+import pandas as pd
 import cv2 as cv
 import tensorflow.keras.utils as np_utils
 import os
+from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
 from keras_preprocessing.sequence import pad_sequences
 from keras.models import Sequential
 from keras.layers import Activation, GRU, Dropout, TimeDistributed, Dense, Bidirectional, Conv3D, Flatten, MaxPooling3D, \
@@ -56,7 +79,8 @@ def read_data():
             one_video_frames = np.asarray(one_video_frames)
             leave_frame = 0
             while (True):
-               # if leave_frame % 2 == 0:
+                #if leave_frame % 2 == 0:                
+                 #cap.set(1,leave_frame)
                  ret, frame = cap.read()
                  if ret == False:
                      break
@@ -66,10 +90,11 @@ def read_data():
 
                  one_video_frames = np.append(one_video_frames, frame)
                  one_video_frames = np.reshape(one_video_frames, (-1, frame.shape[0], frame.shape[1],3))
-               # else:
-                #   leave_frame += 1
-
-                # all_videos.append(np.array([one_video_frames, label]))
+                #else:
+                 if leave_frame+2 < video_frame:                  
+                   leave_frame += 2
+                   cap.set(1,leave_frame)
+                #all_videos.append(np.array([one_video_frames, label]))
             all_videos.append(one_video_frames)
             y_labels.append(label)
     print("max # of frames:", max_no_frames)
@@ -132,12 +157,20 @@ def main():
    # read_data()
     padded_videos = []
     padded_videos = pad_sequences(all_videos, maxlen=max_no_frames, padding='pre')
-    # padded_videos=pad_sequences(all_videos,padding='pre')# bt3rf lw7dha el max lenght <3
+    # padded_videos=pad_sequences(all_videos,padding='pre')# bt3rf lw7dha el max lenght <3,,,, shufty el 3zama :DD
 
     ##################################################
     # training model
 
     shape = (max_no_frames, 80, 80, 3)
+
+    ################################ EDIT #################################
+    padded_shuffled_videos , shuffled_labels = shuffle(padded_videos, y_labels)
+    videos_train, videos_validation, y_train, y_validation = train_test_split(padded_shuffled_videos, shuffled_labels, test_size = 0.2)
+    batch_size = 16
+    training_batch_generator = Generator(videos_train, y_train, batch_size)
+    validation_batch_generator = Generator(videos_validation, y_validation, batch_size)
+    ######################################################################
     model = Sequential()
 
 #   model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2), input_shape=shape)))
@@ -169,7 +202,9 @@ def main():
    
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    model.fit(padded_videos, y_labels, epochs=2, batch_size=max_no_frames, verbose=2)
+    #model.fit(padded_videos, y_labels, epochs=2, batch_size=max_no_frames, verbose=2)
+    ####
+    model.fit_generator(generator=training_batch_generator, epochs=10, verbose=1, validation_data=validation_batch_generator)
     
     #testing
     videos_names=[]
