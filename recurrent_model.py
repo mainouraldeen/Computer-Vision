@@ -1,3 +1,17 @@
+from keras.utils import Sequence
+from tqdm import tqdm
+import numpy as np
+import pandas as pd
+import cv2 as cv
+import tensorflow.keras.utils as np_utils
+import os
+from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
+from keras_preprocessing.sequence import pad_sequences
+from keras.models import Sequential
+from keras.layers import Activation, GRU, Dropout, TimeDistributed, Dense, Bidirectional, Conv3D, Flatten, MaxPooling3D, \
+    ZeroPadding3D, BatchNormalization
+
 class Generator(Sequence):
   def __init__(videos, labels, batch_size):
     self.videos = videos
@@ -17,19 +31,7 @@ class Generator(Sequence):
     batch_y = self.labels[idx*self.batch_size: (idx+1)*self.batch_size] 
     return batch_x , batch_y
 
-from keras.utils import Sequence
-from tqdm import tqdm
-import numpy as np
-import pandas as pd
-import cv2 as cv
-import tensorflow.keras.utils as np_utils
-import os
-from sklearn.utils import shuffle
-from sklearn.model_selection import train_test_split
-from keras_preprocessing.sequence import pad_sequences
-from keras.models import Sequential
-from keras.layers import Activation, GRU, Dropout, TimeDistributed, Dense, Bidirectional, Conv3D, Flatten, MaxPooling3D, \
-    ZeroPadding3D, BatchNormalization
+
 
 """**Global Variables**"""
 
