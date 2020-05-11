@@ -37,8 +37,8 @@ y_labels = []
 all_videos = []
 max_no_frames = 0
 
-training_folder = "Training_Set"
-testing_folder = "Testing_Set"
+training_folder = "Training_set"
+testing_folder = "Testing_set"
 submitFile = pd.read_csv('submit.csv')
 
 """**Get max number of frames and saving all videos without duplication in (total_frames)**"""
