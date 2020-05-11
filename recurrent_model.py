@@ -12,8 +12,9 @@ from keras.models import Sequential
 from keras.layers import Activation, GRU, Dropout, TimeDistributed, Dense, Bidirectional, Conv3D, Flatten, MaxPooling3D, \
     ZeroPadding3D, BatchNormalization
 
+
 class Generator(Sequence):
-  def __init__(videos, labels, batch_size):
+  def __init__(self, videos, labels, batch_size):
     self.videos = videos
     self.labels = labels
     self.batch_size = batch_size
@@ -93,7 +94,7 @@ def read_data():
                  one_video_frames = np.append(one_video_frames, frame)
                  one_video_frames = np.reshape(one_video_frames, (-1, frame.shape[0], frame.shape[1],3))
                 #else:
-                 if leave_frame+2 < video_frame:                  
+                 if leave_frame+2 < video_frames:
                    leave_frame += 2
                    cap.set(1,leave_frame)
                 #all_videos.append(np.array([one_video_frames, label]))
@@ -199,6 +200,7 @@ def main():
     model.add(Bidirectional(GRU(256, return_sequences=True), merge_mode='concat'))
 
     model.add(Flatten())
+    model.add((Dense(128, activation='relu')))
     model.add((Dense(5, activation='softmax')))
 
    
@@ -206,7 +208,7 @@ def main():
 
     #model.fit(padded_videos, y_labels, epochs=2, batch_size=max_no_frames, verbose=2)
     ####
-    model.fit_generator(generator=training_batch_generator, epochs=10, verbose=1, validation_data=validation_batch_generator)
+    model.fit_generator(generator=training_batch_generator, epochs=5, verbose=2, validation_data=validation_batch_generator)
     
     #testing
     videos_names=[]
