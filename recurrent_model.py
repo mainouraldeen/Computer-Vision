@@ -23,6 +23,8 @@ max_no_frames = 0
 training_folder = "Training_set"
 testing_folder = "Testing_set"
 labeled_test_folder = "labeled_test_set"
+# labeled_test_folder = "Training_Set"
+
 submitFile = pd.read_csv('submit.csv')
 
 """**Get max number of frames and saving all videos without duplication in (total_frames)**"""
@@ -107,7 +109,7 @@ def read_labeled_test_data():
     test_labels = []
     test_videos = []
 
-    for folder in tqdm(os.listdir(labeled_test_folder)):  # folder: Basketball, Diving, Jumping, Tennis, and Walking
+    for folder in os.listdir(labeled_test_folder):  # folder: Basketball, Diving, Jumping, Tennis, and Walking
         folder_path = os.path.join(labeled_test_folder, folder)
         print("-->In folder:", folder)
         # check_counter = 0
@@ -124,7 +126,7 @@ def read_labeled_test_data():
         elif (folder == "Walking"):
             label = 4
 
-        for video in os.listdir(folder_path):
+        for video in tqdm(os.listdir(folder_path)):
             videos_names.append(video)
             video_path = os.path.join(folder_path, video)
             cap = cv.VideoCapture(video_path)
@@ -151,17 +153,19 @@ def read_labeled_test_data():
 
                 if (sub_videos == 30):
                     test_video.append(one_video_frames)
-                    test_labels.append(label)
+                    # test_labels.append(label)
                     one_video_frames = []
                     sub_videos = 0
                 sub_videos += 1
-            testing_videos.append(test_video)
+            test_videos.append(test_video)
+            test_labels.append(label)
 
-    test_labels = np_utils.to_categorical(test_labels)
+    # test_labels2=test_labels
+    # test_labels = np_utils.to_categorical(test_labels)
 
-    np.save('test_videos.npy', test_videos)
-    np.save('test_labels.npy', test_labels)
-    np.save('videos_names.npy', videos_names)
+    # np.save('test_videos.npy', test_videos)
+    # np.save('test_labels.npy', test_labels)
+    # np.save('videos_names.npy', videos_names)
     return test_videos, test_labels, videos_names
 
 
@@ -236,60 +240,57 @@ def main():
     padded_videos = pad_sequences(all_videos, maxlen=30, padding='pre')
     # padded_videos=pad_sequences(all_videos,padding='pre')# bt3rf lw7dha el max lenght <3
 
+
+    # model = load_model('recurrent_model.h5')
+
     # training model
     shape = (30, 200, 200, 3)
-    # model = Sequential()
-    # model.load_weights("recurrent_model.h5")
-    model = load_model('recurrent_model.h5')
-    # #    model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2), input_shape=shape)))
-    # model.add(Conv3D(32, kernel_size=(3, 5, 5), strides=(1, 2, 2), activation="relu", input_shape=shape))
-    # model.add(BatchNormalization())
-    # model.add(Dropout(0.3))
-    # model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
-    #
-    # #    model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2))))
-    # model.add(Conv3D(64, kernel_size=(3, 5, 5), strides=(1, 1, 1), activation="relu"))
-    # model.add(BatchNormalization())
-    # model.add(Dropout(0.3))
-    # model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
-    #
-    # #    model.add(TimeDistributed(ZeroPadding3D(padding=(1, 1, 1))))
-    # model.add(Conv3D(96, kernel_size=(3, 3, 3), strides=(1, 1, 1), activation="relu"))
-    # model.add(BatchNormalization())
-    # model.add(Dropout(0.3))
-    # model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
-    #
+    model = Sequential()
+    #    model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2), input_shape=shape)))
+    model.add(Conv3D(32, kernel_size=(3, 5, 5), strides=(1, 2, 2), activation="relu", input_shape=shape))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.3))
+    model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
+
+    #    model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2))))
+    model.add(Conv3D(64, kernel_size=(3, 5, 5), strides=(1, 1, 1), activation="relu"))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.3))
+    model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
+
+    #    model.add(TimeDistributed(ZeroPadding3D(padding=(1, 1, 1))))
+    model.add(Conv3D(96, kernel_size=(3, 3, 3), strides=(1, 1, 1), activation="relu"))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.3))
+    model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
+
     # model.add(TimeDistributed(Flatten()))
-    #
+    # 
     # model.add(Bidirectional(GRU(32, return_sequences=True), merge_mode='concat'))
     # model.add(Bidirectional(GRU(32, return_sequences=True), merge_mode='concat'))
-    #
-    # model.add(Flatten())
-    # model.add((Dense(124, activation='relu')))
-    # model.add((Dense(5, activation='softmax')))
+
+    model.add(Flatten())
+    model.add((Dense(124, activation='relu')))
+    model.add((Dense(5, activation='softmax')))
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    # model.fit(padded_videos, y_labels, epochs=1, batch_size=30, verbose=2)
-    # model.save("recurrent_model.h5")
-    # print("model is saved")
-    print("model is loaded")
+    model.fit(padded_videos, y_labels, epochs=1, batch_size=30, verbose=2)
+    model.save("recurrent_model.h5")
+    print("model is saved")
+    # print("model is loaded")
 
     # testing
-    videos_names = []
-    testing_videos = []
-    test_labels = []
-    if (os.path.exists("testing_videos.npy")):
-        testing_videos = np.load("testing_videos.npy", allow_pickle=True)
-        videos_names = np.load("videos_names.npy", allow_pickle=True)
-        test_labels = np.load("test_labels.npy", allow_pickle=True)
 
-    else:
-        testing_videos, test_labels, videos_names = read_labeled_test_data()
+    # if (os.path.exists("test_videos.npy")):
+    #     testing_videos = np.load("test_videos.npy", allow_pickle=True)
+    #     videos_names = np.load("videos_names.npy", allow_pickle=True)
+    #     test_labels = np.load("test_labels.npy", allow_pickle=True)
+    #
+    # else:
+    #     testing_videos, test_labels, videos_names = read_labeled_test_data()
 
-    # testing_videos, videos_names = read_test_data()
-
-    # padded_test_videos = pad_sequences(testing_videos, maxlen=max_no_frames, padding='pre')
+    testing_videos, test_labels, videos_names = read_labeled_test_data()
 
     predicted_labels = []
 
@@ -297,10 +298,10 @@ def main():
         padded_test = pad_sequences(testing_videos[i], maxlen=30, padding='pre')
         prediction = model.predict(padded_test)
         prediction = np.argmax(prediction, axis=1)
-
+        # print(prediction)
         # majority_voting=multimode(prediction)
         majority_voting = stats.mode(prediction)[0]
-        predicted_labels.append(majority_voting)
+        predicted_labels.append(majority_voting[0])
 
     # prediction = model.predict(padded_test_videos)
     # predicted_labels=np.argmax(prediction,axis=1)
@@ -311,13 +312,16 @@ def main():
     print("Submit File Saved Successfully")
 
     correct = 0
-    y_predicted = np_utils.to_categorical(predicted_labels)
-    for i in range(len(y_labels)):
+    # y_predicted = np_utils.to_categorical(predicted_labels)
+    print("test_labels", len(test_labels), test_labels[1])
+    print("predicted_labels", len(predicted_labels), predicted_labels[1])
+
+    for i in range(len(test_labels)):
         # y_predicted[i, :] = np.where(y_predicted[i, :] == max(y_predicted[i, :]), 1, 0)
-        if np.array_equal(y_predicted[i], y_labels[i]):
+        if np.array_equal(predicted_labels[i], test_labels[i]):
             correct += 1
 
-    print("Overall Accuracy", (correct / len(y_labels)) * 100, "%")
+    print("Overall Accuracy", (correct / len(test_labels)) * 100, "%")
 
 
 main()
