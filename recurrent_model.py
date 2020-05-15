@@ -11,7 +11,8 @@ from sklearn.utils import shuffle
 # from random import shuffle
 from keras_preprocessing.sequence import pad_sequences
 from keras.models import Sequential
-from keras.layers import Activation, GRU, Dropout, TimeDistributed, Dense, Bidirectional, Conv3D, Flatten, MaxPooling3D, \
+from keras.layers import Activation, GRU, LSTM, Dropout, TimeDistributed, Dense, Bidirectional, Conv3D, Flatten, \
+    MaxPooling3D, \
     ZeroPadding3D, BatchNormalization
 
 """**Global Variables**"""
@@ -83,7 +84,7 @@ def read_data():
                     cap.set(1, leave_frame)
                 # all_videos.append(np.array([one_video_frames, label]))
 
-                if (sub_videos == 30):
+                if (sub_videos == 15):
                     all_videos.append(one_video_frames)
                     y_labels.append(label)
                     one_video_frames = []
@@ -98,8 +99,9 @@ def read_data():
     print("LENNN all_videos", len(all_videos))
     # all_videos: each element "has a diff size according to the length of each video" is a list of frames for each video
     shuffle(all_videos, y_labels)  # lazm lama a shuffle arbot bl label
-    np.save('all_videosP1.npy', all_videos[:600])
-    np.save('all_videosP2.npy', all_videos[600:])
+    np.save('all_videosP1.npy', all_videos[:1000])
+    np.save('all_videosP2.npy', all_videos[1000:2000])
+    np.save('all_videosP3.npy', all_videos[2000:])
     np.save('y_labels.npy', y_labels)
     np.save('max_no_frames.npy', max_no_frames)
 
@@ -151,7 +153,7 @@ def read_labeled_test_data():
                 one_video_frames = np.append(one_video_frames, frame)
                 one_video_frames = np.reshape(one_video_frames, (-1, frame.shape[0], frame.shape[1], 3))
 
-                if (sub_videos == 30):
+                if (sub_videos == 15):
                     test_video.append(one_video_frames)
                     # test_labels.append(label)
                     one_video_frames = []
@@ -198,7 +200,7 @@ def read_test_data():
 
             one_video_frames = np.append(one_video_frames, frame)
             one_video_frames = np.reshape(one_video_frames, (-1, frame.shape[0], frame.shape[1], 3))
-            if (sub_videos == 30):
+            if (sub_videos == 15):
                 test_video.append(one_video_frames)
                 one_video_frames = []
                 sub_videos = 0
@@ -213,61 +215,52 @@ def main():
     global all_videos
     global y_labels
     global max_no_frames
-    # save_path = 'all_videos.npy'
     save_path = 'all_videosP1.npy'
 
     if (os.path.exists(save_path)):
         all_videos = np.load(save_path, allow_pickle=True)
         x = np.load("all_videosP2.npy", allow_pickle=True)
+        y = np.load("all_videosP3.npy", allow_pickle=True)
         all_videos = np.append(all_videos, x)
+        all_videos = np.append(all_videos, y)
         y_labels = np.load('y_labels.npy', allow_pickle=True)
-        # max_no_frames = np.load('max_no_frames.npy', allow_pickle=True)
         print("train data loaded")
     else:
         read_data()
         print("train data created")
 
-    # if (os.path.exists(save_path)):
-    #     all_videos = np.load(save_path, allow_pickle=True)
-    #     y_labels = np.load('y_labels.npy', allow_pickle=True)
-    #     max_no_frames = np.load('max_no_frames.npy', allow_pickle=True)
-    #     print("train data loaded")
-    # else:
-    #     read_data()
-    #     print("train data created")
     # read_data()
 
-    padded_videos = pad_sequences(all_videos, maxlen=30, padding='pre')
+    padded_videos = pad_sequences(all_videos, maxlen=15, padding='pre')
     # padded_videos=pad_sequences(all_videos,padding='pre')# bt3rf lw7dha el max lenght <3
-
 
     # model = load_model('recurrent_model.h5')
 
     # training model
-    shape = (30, 200, 200, 3)
+    shape = (15, 200, 200, 3)
     model = Sequential()
     #    model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2), input_shape=shape)))
     model.add(Conv3D(32, kernel_size=(3, 5, 5), strides=(1, 2, 2), activation="relu", input_shape=shape))
     model.add(BatchNormalization())
-    model.add(Dropout(0.3))
+    # model.add(Dropout(0.3))
     model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
 
     #    model.add(TimeDistributed(ZeroPadding3D(padding=(1, 2, 2))))
     model.add(Conv3D(64, kernel_size=(3, 5, 5), strides=(1, 1, 1), activation="relu"))
     model.add(BatchNormalization())
-    model.add(Dropout(0.3))
+    # model.add(Dropout(0.3))
     model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
 
     #    model.add(TimeDistributed(ZeroPadding3D(padding=(1, 1, 1))))
     model.add(Conv3D(96, kernel_size=(3, 3, 3), strides=(1, 1, 1), activation="relu"))
     model.add(BatchNormalization())
-    model.add(Dropout(0.3))
+    # model.add(Dropout(0.3))
     model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2)))
 
-    # model.add(TimeDistributed(Flatten()))
-    # 
-    # model.add(Bidirectional(GRU(32, return_sequences=True), merge_mode='concat'))
-    # model.add(Bidirectional(GRU(32, return_sequences=True), merge_mode='concat'))
+    model.add(TimeDistributed(Flatten()))
+
+    model.add(Bidirectional(GRU(64, return_sequences=True), merge_mode='ave'))
+    model.add(Bidirectional(GRU(64, return_sequences=True), merge_mode='ave'))
 
     model.add(Flatten())
     model.add((Dense(124, activation='relu')))
@@ -275,7 +268,7 @@ def main():
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    model.fit(padded_videos, y_labels, epochs=1, batch_size=30, verbose=2)
+    model.fit(padded_videos, y_labels, epochs=30, batch_size=15, verbose=2)
     model.save("recurrent_model.h5")
     print("model is saved")
     # print("model is loaded")
@@ -295,7 +288,7 @@ def main():
     predicted_labels = []
 
     for i in range(len(testing_videos)):
-        padded_test = pad_sequences(testing_videos[i], maxlen=30, padding='pre')
+        padded_test = pad_sequences(testing_videos[i], maxlen=15, padding='pre')
         prediction = model.predict(padded_test)
         prediction = np.argmax(prediction, axis=1)
         # print(prediction)
